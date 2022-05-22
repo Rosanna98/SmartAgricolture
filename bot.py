@@ -1,5 +1,7 @@
 # pip install python-telegram-bot
 from telegram.ext import Updater, CommandHandler, MessageHandler, Filters, ConversationHandler, RegexHandler
+
+import secret
 from secret import bot_token
 
 logged_user=[] #lista di utenti che possono accedere al bot
@@ -10,13 +12,24 @@ logged_user=[] #lista di utenti che possono accedere al bot
 #controllo che l'utente sia in "logged_user"
 
 def welcome(update, context):
-    msg = '''Welcome in <b>My Bot</b>'''
-    update.message.reply_text(msg, parse_mode='HTML')
+    user=update.message.from_user
+    if user['id'] not in logged_user:
+        msg = '''Welcome in <b>My Bot</b>Send password to authenticate'''
+        update.message.reply_text(msg, parse_mode='HTML')
+    else:
+        msg = '''Welcome in <b>My Bot</b>'''
+        update.message.reply_text(msg, parse_mode='HTML')
 
 def process_chat(update, context):
-    print(context)
-    if update.message.text.lower() == 'avvisi': #se scrivi "avvisi" ti dico che non ci sono nuovi avvisi
-        msg = 'Non ci sono nuovi avvisi'
+    user=update.message.from_user #recupero sempre l'utente che mi sta parlando
+    if update.message.text.lower() == secret.password: #check se l'utente ha messo la password segreta
+        logged_user.append(user['id']) #inserisco l'utente nella lsita
+        update.message.reply_text('Welcome you have been logged', parse_mode='HTML')
+
+    if user['id'] not in logged_user:
+        welcome(update,context)#richiamo la funzione welcome
+    elif update.message.text.lower() == 'avvisi':
+        msg = '''Non ci sono nuovi avvisi'''
         update.message.reply_text(msg, parse_mode='HTML')
     elif update.message.text.lower() == 'graph':
         chat_id = update.message.chat.id
@@ -25,15 +38,17 @@ def process_chat(update, context):
         welcome(update, context)
 
 def process_location(update, context):
-
-    if update.edited_message:
-        message = update.edited_message
+    user = update.message.from_user  # recupero sempre l'utente che mi sta parlando
+    if user['id'] not in logged_user:
+        welcome(update,context)#richiamo la funzione welcome
     else:
-        message = update.message
+        if update.edited_message:
+            message = update.edited_message
+        else:
+            message = update.message
 
-    user_location = message.location
-
-    user = message.from_user
+        user_location = message.location
+        user = message.from_user
     print(user)
     print(f"You talk with user {user['first_name']} and his user ID: {user['id']}")
 
@@ -42,9 +57,13 @@ def process_location(update, context):
     message.reply_text(msg)
 
 def photo_handler(update, context):
-    file = context.bot.getFile(update.message.photo[-1].file_id)
-    file.download('photo.jpg')
-    update.message.reply_text('photo received')
+    user = update.message.from_user  # recupero sempre l'utente che mi sta parlando
+    if user['id'] not in logged_user:
+        welcome(update, context)  # richiamo la funzione welcome
+    else:
+        file = context.bot.getFile(update.message.photo[-1].file_id)
+        file.download('photo.jpg')
+        update.message.reply_text('photo received')
 
 def main():
    print('bot started')
